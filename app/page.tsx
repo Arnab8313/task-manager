@@ -5,6 +5,7 @@ import { DragDropContext, type DropResult } from "@hello-pangea/dnd"
 import { TaskBoard } from "@/components/task-board"
 import { TaskModal } from "@/components/task-modal"
 import { Navbar } from "@/components/navbar"
+import { SortingToolbar } from "@/components/sorting-toolbar"
 import { useTheme } from "next-themes"
 
 export interface Task {
@@ -20,7 +21,13 @@ export interface Task {
   }
 }
 
+export interface SortConfig {
+  mode: "priority" | "deadline" | "custom"
+  order: "asc" | "desc"
+}
+
 const STORAGE_KEY = "task-manager-tasks"
+const SORT_CONFIG_KEY = "task-manager-sort-config"
 
 export default function Home() {
   const { theme } = useTheme()
@@ -29,14 +36,26 @@ export default function Home() {
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
+  const [sortConfig, setSortConfig] = useState<SortConfig>({
+    mode: "custom",
+    order: "asc",
+  })
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
+    const storedSort = localStorage.getItem(SORT_CONFIG_KEY)
     if (stored) {
       try {
         setTasks(JSON.parse(stored))
       } catch (e) {
         console.error("Failed to parse tasks from localStorage:", e)
+      }
+    }
+    if (storedSort) {
+      try {
+        setSortConfig(JSON.parse(storedSort))
+      } catch (e) {
+        console.error("Failed to parse sort config from localStorage:", e)
       }
     }
     setIsLoading(false)
@@ -48,6 +67,60 @@ export default function Home() {
     }
   }, [tasks, isLoading])
 
+  useEffect(() => {
+    localStorage.setItem(SORT_CONFIG_KEY, JSON.stringify(sortConfig))
+  }, [sortConfig])
+
+  const sortTasks = (tasksToSort: Task[]): Task[] => {
+    const sorted = [...tasksToSort]
+
+    switch (sortConfig.mode) {
+      case "priority": {
+        const priorityOrder = { high: 0, medium: 1, low: 2 }
+        sorted.sort((a, b) => {
+          const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+          if (priorityDiff !== 0) return priorityDiff
+
+          if (a.deadline && b.deadline) {
+            const dateA = new Date(`${a.deadline.date}T${a.deadline.time}`)
+            const dateB = new Date(`${b.deadline.date}T${b.deadline.time}`)
+            if (dateA.getTime() !== dateB.getTime()) return dateA.getTime() - dateB.getTime()
+          } else if (a.deadline) return -1
+          else if (b.deadline) return 1
+
+          return a.title.localeCompare(b.title)
+        })
+        break
+      }
+      case "deadline": {
+        sorted.sort((a, b) => {
+          if (a.deadline && b.deadline) {
+            const dateA = new Date(`${a.deadline.date}T${a.deadline.time}`)
+            const dateB = new Date(`${b.deadline.date}T${b.deadline.time}`)
+            const diff = dateA.getTime() - dateB.getTime()
+            if (diff !== 0) return diff
+          } else if (a.deadline) return -1
+          else if (b.deadline) return 1
+
+          const priorityOrder = { high: 0, medium: 1, low: 2 }
+          const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority]
+          if (priorityDiff !== 0) return priorityDiff
+
+          return a.title.localeCompare(b.title)
+        })
+        break
+      }
+      case "custom":
+      default:
+        return sorted
+    }
+
+    if (sortConfig.order === "desc") {
+      return sorted.reverse()
+    }
+    return sorted
+  }
+
   const filteredTasks = useMemo(() => {
     if (!searchQuery.trim()) return tasks
     const query = searchQuery.toLowerCase()
@@ -55,6 +128,18 @@ export default function Home() {
       (task) => task.title.toLowerCase().includes(query) || task.description?.toLowerCase().includes(query),
     )
   }, [tasks, searchQuery])
+
+  const sortedAndGroupedTasks = useMemo(() => {
+    const todoTasks = sortTasks(filteredTasks.filter((t) => t.column === "todo"))
+    const inProgressTasks = sortTasks(filteredTasks.filter((t) => t.column === "inProgress"))
+    const doneTasks = sortTasks(filteredTasks.filter((t) => t.column === "done"))
+
+    return {
+      todo: todoTasks,
+      inProgress: inProgressTasks,
+      done: doneTasks,
+    }
+  }, [filteredTasks, sortConfig])
 
   const handleAddTask = () => {
     setEditingTask(null)
@@ -115,9 +200,6 @@ export default function Home() {
     )
   }
 
-  const todoTasks = filteredTasks.filter((t) => t.column === "todo")
-  const inProgressTasks = filteredTasks.filter((t) => t.column === "inProgress")
-  const doneTasks = filteredTasks.filter((t) => t.column === "done")
   const totalCompleted = tasks.filter((t) => t.column === "done").length
   const completionPercentage = tasks.length > 0 ? Math.round((totalCompleted / tasks.length) * 100) : 0
 
@@ -151,13 +233,15 @@ export default function Home() {
           </div>
         )}
 
+        {tasks.length > 0 && <SortingToolbar sortConfig={sortConfig} onSortChange={setSortConfig} />}
+
         {/* Board with Drag and Drop */}
         {tasks.length > 0 ? (
           <DragDropContext onDragEnd={handleDragEnd}>
             <TaskBoard
-              todoTasks={todoTasks}
-              inProgressTasks={inProgressTasks}
-              doneTasks={doneTasks}
+              todoTasks={sortedAndGroupedTasks.todo}
+              inProgressTasks={sortedAndGroupedTasks.inProgress}
+              doneTasks={sortedAndGroupedTasks.done}
               onEditTask={handleEditTask}
               onDeleteTask={handleDeleteTask}
             />

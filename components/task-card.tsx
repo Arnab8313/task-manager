@@ -10,6 +10,23 @@ interface TaskCardProps {
   onDelete: (id: string) => void
 }
 
+const getDeadlineWarning = (deadline: { date: string; time: string } | undefined) => {
+  if (!deadline) return null
+
+  const [year, month, day] = deadline.date.split("-")
+  const deadlineDate = new Date(`${year}-${month}-${day}T${deadline.time || "00:00"}`)
+  const now = new Date()
+  const diffMs = deadlineDate.getTime() - now.getTime()
+  const diffDays = diffMs / (1000 * 60 * 60 * 24)
+
+  if (diffMs < 0) {
+    return { type: "overdue", color: "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20" }
+  } else if (diffDays <= 3) {
+    return { type: "urgent", color: "border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-900/20" }
+  }
+  return null
+}
+
 export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
   const formatDeadline = (deadline: { date: string; time: string } | undefined) => {
     if (!deadline) return null
@@ -37,6 +54,7 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
 
   const deadlineStr = formatDeadline(task.deadline)
   const isDeadlineOverdue = task.deadline && isOverdue(task.deadline)
+  const deadlineWarning = getDeadlineWarning(task.deadline)
 
   return (
     <motion.div
@@ -45,7 +63,9 @@ export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
       whileHover={{ y: -4 }}
-      className="group bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 p-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+      className={`group bg-white dark:bg-gray-700 rounded-lg border p-4 shadow-sm hover:shadow-md transition-all duration-200 ${
+        deadlineWarning?.color || "border-gray-200 dark:border-gray-600"
+      }`}
     >
       {/* Priority Badge */}
       <div className="flex items-start justify-between mb-2">
