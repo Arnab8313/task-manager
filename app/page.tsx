@@ -182,6 +182,26 @@ export default function Home() {
     const task = filteredTasks.find((t) => t.id === draggableId)
     if (!task) return
 
+    // If custom sort mode and dragging within the same column, reorder tasks
+    if (sortConfig.mode === "custom" && source.droppableId === destination.droppableId) {
+      const column = source.droppableId as Task["column"]
+      const columnTasks = tasks.filter((t) => t.column === column)
+      const taskIndex = columnTasks.findIndex((t) => t.id === draggableId)
+
+      if (taskIndex !== -1) {
+        const reordered = [...columnTasks]
+        const [moved] = reordered.splice(taskIndex, 1)
+        reordered.splice(destination.index, 0, moved)
+
+        // Update full tasks array maintaining the new order
+        const otherTasks = tasks.filter((t) => t.column !== column)
+        const updatedTasks = [...otherTasks, ...reordered]
+        setTasks(updatedTasks)
+        return
+      }
+    }
+
+    // Standard behavior: move task to different column
     const newColumn = destination.droppableId as Task["column"]
     setTasks(tasks.map((t) => (t.id === draggableId ? { ...t, column: newColumn } : t)))
   }

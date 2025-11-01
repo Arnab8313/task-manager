@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Task Manager",
   description: "A professional task management application inspired by Trello",
-
+    generator: 'v0.app'
 }
 
 export default function RootLayout({

@@ -39,6 +39,23 @@ export function SortingToolbar({ sortConfig, onSortChange }: SortingToolbarProps
       transition={{ duration: 0.2 }}
       className="mb-8 card p-4"
     >
+      {sortConfig.mode === "custom" && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: "auto" }}
+          exit={{ opacity: 0, height: 0 }}
+          className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-start gap-3"
+        >
+          <span className="text-lg">🖐️</span>
+          <div>
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Custom Order Active</p>
+            <p className="text-xs text-blue-700 dark:text-blue-300 mt-0.5">
+              Drag and drop tasks to set your own order within each column.
+            </p>
+          </div>
+        </motion.div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Sort Mode Selector */}
         <div className="flex items-center gap-3">

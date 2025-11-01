@@ -45,8 +45,12 @@ export function TaskColumn({ column, title, icon, color, tasks, onEditTask, onDe
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
                   className={`transition-all ${
-                    snapshot.isDragging ? "opacity-50 bg-blue-100 dark:bg-blue-900/20" : ""
-                  }`}
+                    snapshot.isDragging ? "opacity-50 bg-blue-100 dark:bg-blue-900/20" : "cursor-grab hover:cursor-grab"
+                  } ${snapshot.isDragging ? "cursor-grabbing" : ""}`}
+                  style={{
+                    ...provided.draggableProps.style,
+                    cursor: snapshot.isDragging ? "grabbing" : "grab",
+                  }}
                 >
                   <TaskCard task={task} onEdit={onEditTask} onDelete={onDeleteTask} />
                 </div>
